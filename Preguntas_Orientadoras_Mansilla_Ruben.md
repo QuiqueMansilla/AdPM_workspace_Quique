@@ -260,3 +260,129 @@ Las ventajas del CMSIS incluyen:
 •	3. Estándares: Define una interfaz estándar para el desarrollo de software en microcontroladores Cortex-M, lo que facilita la colaboración entre diferentes desarrolladores y empresas.
 •	4. Soporte de herramientas: El CMSIS es compatible con una amplia variedad de herramientas de desarrollo, como compiladores, depuradores y entornos de desarrollo integrados (IDE), lo que facilita la integración y el flujo de trabajo en el desarrollo de software.
 En resumen, el CMSIS es una capa de software que proporciona una interfaz estándar para el desarrollo de sistemas embebidos basados en la arquitectura ARM Cortex-M. Facilita el desarrollo de software, la portabilidad del código y mejora la eficiencia del sistema. Es proporcionado por ARM Holdings como una biblioteca de software de código abierto.
+
+15. Cuando ocurre una interrupción, asumiendo que está habilitada ¿Cómo opera el microprocesador para atender a la subrutina correspondiente? Explique con un ejemplo
+Cuando ocurre una interrupción y esta es atendida la CPU realiza un cambio de contexto. Para hacer esto se produce lo que se denomina un stacking, que consiste en salvar los contenidos de determinados registros de la CDU en el stack, como ser: los registros r0 a r3, r12, ), el LR, Return address, xPSR (por defecto), el registro de estado o APSR (Application Program Status Register), que contienen la info necesaria para regresar al contexto anterior luego de atender la interrupción. También se pueden salvar registros adicionales, si se considera necesario, pero esto, debe hacerse en forma manual por parte del usuario.
+
+16. ¿Cómo cambia la operación de stacking al utilizar la unidad de punto flotante?
+En este caso se salvan más registros durante el stacking: aparte de los mencionados en el punto anterior se slavan so registros s0 a s15, el FPSCR, y opcionalmente otros que el usuario considere necesario salvar.
+
+17. Explique las características avanzadas de atención a interrupciones: tail chaining y late arrival.
+# Interrupción de tipo tail chaining
+Cuando se produce una excepción pero el procesador está manejando otra excepción de la misma o mayor prioridad, la excepción entrará en el estado pendiente. Cuando el procesador termina de ejecutar el controlador de excepciones actual, puede proceder a procesar la solicitud de excepción/interrupción pendiente. En lugar de restaurar los registros de la pila (desapilar) y luego empujarlos nuevamente a la pila (apilar), el procesador omite los pasos de desapilado y apilamiento e ingresa al controlador de excepciones de la excepción pendiente lo antes posible. De esta manera, la brecha de tiempo entre los dos manejadores de excepciones se reduce considerablemente. Para un sistema de memoria sin estado de espera, la latencia de la cadena de cola es de sólo seis ciclos de reloj.
+La optimización del encadenamiento de cola también hace que el sistema sea más eficiente energéticamente porque reduce la cantidad de accesos a la memoria de la pila y cada transferencia de memoria consume energía.
+# Interrupción tipo late arrival
+Cuando se produce una excepción, el procesador acepta la solicitud de excepción e inicia la operación de apilamiento. Si durante esta operación de apilamiento se produce otra excepción de mayor prioridad, la excepción de llegada tardía de mayor prioridad será atendida primero.
+Por ejemplo, si la Excepción n.° 1 (prioridad más baja) tiene lugar unos ciclos antes de la Excepción n.° 2 (prioridad más alta), el procesador se comportará como se muestra en la Figura 8.13, de modo que el Controlador n.° 2 se ejecute tan pronto como se complete el stacking.
+
+18. ¿Qué es el systick? ¿Por qué puede afirmarse que su implementación favorece la portabilidad de los sistemas operativos embebidos?
+Los procesadores Cortex -M3 y Cortex-M4 están diseñados para admitir sistemas operativos integrados de manera eficiente. Tienen un temporizador del sistema incorporado tipo tick llamado SysTick, que se puede configurar para generar interrupciones periódicas del temporizador para la temporización del sistema operativo. Dado que el temporizador SysTick está disponible en todos los dispositivos Cortex-M3 y Cortex-M4, el código fuente del sistema operativo integrado se puede utilizar fácilmente en todos estos dispositivos sin modificaciones para los temporizadores específicos del dispositivo, por este motivo es que podemos afirmar que favorece la protabilidad de los sistemas operativos embebidos.
+
+19. ¿Qué funciones cumple la unidad de protección de memoria (MPU)?
+La MPU es una característica opcional disponible en los procesadores Cortex -M3 y Cortex-M4. Los proveedores de microcontroladores pueden decidir si incluyen la MPU o no. La MPU es un dispositivo programable que monitorea las transacciones del bus y debe configurarse mediante software, generalmente un sistema operativo integrado. Si se incluye una MPU, las aplicaciones pueden dividir el espacio de memoria en varias regiones y definir los permisos de acceso para cada una de ellas. Cuando se viola una regla de acceso, se genera una excepción de falla y el handler de excepciones de falla podrá analizar el problema y, si es posible, corregirlo.
+La MPU se puede utilizar de varias maneras. En escenarios comunes, un sistema operativo puede configurar la MPU para proteger los datos utilizados por el kernel del sistema operativo y otras tareas privilegiadas, evitando que programas de usuarios que no son de confianza los corrompan. Opcionalmente, el sistema operativo también puede aislar regiones de memoria entre diferentes tareas de usuario. Estas medidas permiten una mejor detección de fallas del sistema y permiten que los sistemas sean más sólidos en el manejo de condiciones de error.
+La MPU también se puede utilizar para hacer que las regiones de la memoria sean de solo lectura, para evitar el borrado accidental de datos en SRAM o la sobreescritura del código de instrucción.
+De forma predeterminada, la MPU está deshabilitada y las aplicaciones que no requieren una función de protección de memoria no tienen que inicializarla.
+
+20. ¿Cuántas regiones pueden configurarse como máximo? ¿Qué ocurre en caso de haber solapamientos de las regiones? ¿Qué ocurre con las zonas de memoria no cubiertas por las regiones definidas?
+
+La MPU es una unidad programable que define los permisos de acceso para varias regiones de la memoria. La MPU del procesador Cortex-M3 y Cortex-M4 admite ocho regiones programables y se puede utilizar con un sistema operativo integrado para proporcionar un sistema robusto.
+En caso de que alguna aplicación intente acceder a una zona de memoria protegida se puede desencadenar una de dos excepciones:
+● HardFault
+● MemManege (si se habilita)
+
+21. ¿Para qué se suele utilizar la excepción PendSV? ¿Cómo se relaciona su uso con el resto de las excepciones? Dé un ejemplo
+
+Es una excepción que suele utilizar un sistema operativo en procesos como el cambio de contexto. 
+Para algunas otras excepciones del sistema como NMI, PendSV y SysTick, se pueden activar configurando el estado pendiente en Control de interrupciones y Registro de estado (consulte ICSR en la sección 7.9.2). De manera similar a las interrupciones, establecer el estado pendiente de estas excepciones no siempre garantiza que se ejecutarán de inmediato.
+Las excepciones SVC y PendSV: son dos tipos de excepciones esenciales para las operaciones de los sistemas operativos integrados, como la implementación del cambio de contexto.
+PendSV (llamada de servicio pendiente) es otro tipo de excepción que es importante para respaldar las operaciones del sistema operativo. Es tipo de excepción 14 y tiene un nivel de prioridad programable. La excepción PendSV se activa estableciendo su estado pendiente escribiendo en el Registro de Estado y de Control de Interrupciones (ICSR). A diferencia de la excepción SVC, no es precisa. Por lo tanto, su estado pendiente se puede establecer dentro de un controlador de excepciones de mayor prioridad y ejecutarse cuando finalice el controlador de mayor prioridad.
+Usando esta característica, podemos programar el controlador de excepciones PendSV para que se ejecute después de que se hayan realizado todas las demás tareas de procesamiento de interrupciones, asegurándonos de que PendSV tenga el nivel de prioridad de excepción más bajo. Esto es muy útil para una operación de cambio de contexto, que es una operación clave en varios diseños de sistema operativo.
+
+22. ¿Para qué se suele utilizar la excepción SVC? Explíquelo dentro de un marco de un sistema operativo embebido.
+Las excepciones SVC (llamada de supervisor) y PendSV (llamada de servicio pendiente) son importantes para los diseños de SO. SVC es un tipo de excepción 11 y tiene un nivel de prioridad programable.
+La excepción SVC la desencadena la instrucción SVC. Aunque es posible activar una interrupción usando software escribiendo en NVIC (por ejemplo, Registro de interrupción de activación de software, NVIC->STIR), el comportamiento es un poco diferente: las interrupciones son imprecisas. Significa que se podrían ejecutar varias instrucciones después de establecer el estado pendiente pero antes de que realmente se produzca la interrupción. Por otro lado, SVC es preciso. El controlador SVC debe ejecutarse después de la instrucción SVC, excepto cuando llega al mismo tiempo otra excepción de mayor prioridad.
+En muchos sistemas, el mecanismo SVC se puede utilizar como API para permitir que las tareas de la aplicación accedan a los recursos del sistema.
+En sistemas con requisitos de alta confiabilidad, las tareas de la aplicación se pueden ejecutar en un nivel de acceso sin privilegios y algunos de los recursos de hardware se pueden configurar para que solo se pueda acceder con privilegios (usando MPU). La única forma en que una tarea de aplicación puede acceder a estos recursos de hardware protegidos es a través de servicios del sistema operativo. De esta manera, un sistema integrado puede ser más robusto y seguro, porque las tareas de la aplicación no pueden obtener acceso no autorizado al hardware crítico.
+En algunos casos, esto también facilita la programación de las tareas de la aplicación porque las tareas de la aplicación no necesitan conocer los detalles de programación del hardware subyacente si los servicios del sistema operativo proporcionan lo que la tarea necesita.
+SVC también permite que las tareas de la aplicación se desarrollen independientemente del sistema operativo porque las tareas de la aplicación no necesitan conocer la dirección exacta de las funciones de servicio del sistema operativo. Las tareas de la aplicación solo necesitan conocer el número de servicio SVC y los parámetros que requieren los servicios del sistema operativo. La programación real a nivel de hardware la manejan los controladores de dispositivos.
+La excepción SVC se genera mediante la instrucción SVC. Se requiere un valor inmediato para esta instrucción, que funciona como un método de paso de parámetros. Luego, el controlador de excepciones SVC puede extraer el parámetro y determinar qué acción debe realizar.
+La sintaxis tradicional de SVC también es aceptable (sin el “#”) en las cadenas de herramientas ARM:
+                                            SVC 0x3 :  Call   SVC   function 3
+                                            
+Para el desarrollo de lenguaje C con cadenas de herramientas ARM (KEIL Microcontroller Development Kit para ARM o ARM Development Studio 5), la instrucción SVC se puede generar usando la función __svc. En gcc y algunas otras cadenas de herramientas, esto se puede generar mediante ensamblaje en línea.
+
+ISA
+1. ¿Qué son los sufijos y para qué se los utiliza? Dé un ejemplo
+Uso de un sufijo en instrucciones
+En ensamblador para procesadores ARM, algunas instrucciones pueden ir seguidas de sufijos. Para los procesadores Cortex -M, los sufijos disponibles se muestran en la Tabla 5.3. Para los procesadores Cortex-M3/M4, una instrucción de procesamiento de datos puede actualizar opcionalmente el APSR (flags). Si utilizamos la sintaxis del Lenguaje Ensamblador Unificado (UAL), podremos especificar si se debe realizar la actualización APSR o no. Por ejemplo, al mover un dato de un registro a otro, es posible utilizar
+                MOVS R0, R1 ; Move R1 into R0 and update APSR
+                              ó
+                MOV R0, R1 ; Move R1 into R0, and not update APSR
+
+El segundo tipo de sufijo es para la ejecución condicional de instrucciones. Los procesadores Cortex-M3 y Cortex-M4 admiten ramas condicionales, así como la ejecución condicional de instrucciones al colocar las instrucciones condicionales en un bloque de instrucciones IF-THEN (IT). Al actualizar el APSR mediante operaciones de datos o instrucciones como prueba (TST) o comparación (CMP), el flujo del programa se puede controlar en función de las condiciones de los resultados de la operación.
+Ejemplo: Sufijo “S”: Actualizar APSR (Registro de estado del programa de aplicación, como indicadores de acarreo, desbordamiento, cero y negativo); Por ejemplo:
+                ADD R0, R1; esta operación ADD actualizará APSR
+
+2. ¿Para qué se utiliza el sufijo ‘s’? Dé un ejemplo
+Hace varios años, antes de que se desarrollara la tecnología Thumb -2, las funciones disponibles en el set de instrucciones Thumb eran limitadas y la sintaxis de las instrucciones Thumb era más relajada. Por ejemplo, en ARM7TDMI, casi todas las instrucciones de procesamiento de datos en modo Thumb actualizarán el APSR de todos modos, por lo que el sufijo "S" no es estrictamente necesario para la instrucción Thumb, y omitirlo aún resultaría en una instrucción que actualiza el APSR.
+Cuando llegó la tecnología Thumb-2, casi todas las instrucciones Thumb estaban disponibles en una versión que actualizaba APSR y en una versión que no. Como resultado, la sintaxis tradicional de Thumb puede resultar problemática en el desarrollo de software Thumb-2.
+Para permitir una mejor portabilidad entre arquitecturas y utilizar una única sintaxis de lenguaje ensamblador en procesadores ARM con varias arquitecturas, las herramientas de desarrollo ARM recientes se han actualizado para admitir el lenguaje ensamblador unificado (UAL). Para los usuarios que han usado ARM7TDMI en el pasado, las diferencias más notables son:
+• Algunas instrucciones de operación de datos utilizan tres operandos incluso cuando el registro de destino es el mismo que uno de los registros de origen. En el pasado (antes de UAL), es posible que la sintaxis solo use dos operandos para estas instrucciones.
+• El sufijo “S” se vuelve más explícito. En el pasado, cuando un archivo de programa ensamblador se ensamblaba en código Thumb, la mayoría de las operaciones de datos se codificaban como instrucciones que actualizaban el APSR. Como resultado, el sufijo “S” no era esencial. Con la sintaxis UAL, las instrucciones que actualizan el APSR deben tener el sufijo “S” para indicar claramente la operación esperada. Esto evita que el código del programa falle al transferirse de una arquitectura a otra.
+Por ejemplo, una instrucción ADD anterior a UAL para código Thumb de 16 bits es:
+ADD R0, R1 ; R0 = R0 + R1, actualiza APSR
+En sintaxis UAL, esto debería escribirse de la siguiente manera, siendo más específico sobre el uso de registros y las operaciones de actualización de APSR:
+		          ADDS R0, R0, R1 ; R0 = R0 + R1, actualiza APSR
+
+Sin embargo, en la mayoría de los casos (dependiendo de la cadena de herramientas que se utilice), aún puede escribir la instrucción con un estilo pre-UAL (solo dos operandos), pero el uso del sufijo “S” será más explícito:
+		          ADDS R0, R1 ; R0 = R0 + R1, actualiza APSR
+
+Actualmente, la sintaxis anterior a UAL todavía es aceptada por la mayoría de las herramientas de desarrollo, incluido el kit de desarrollo de microcontroladores Keil para ARM (MDK-ARM) y la cadena de herramientas del compilador ARM. Sin embargo, se recomienda utilizar UAL en proyectos nuevos. Para el desarrollo de ensamblados con Keil MDK, puede especificar el uso de la sintaxis UAL con la directiva “THUMB” y la sintaxis pre-UAL con la directiva “CODE16”.
+
+3. ¿Qué utilidad tiene la implementación de instrucciones de aritmética saturada? Dé un ejemplo con operaciones con datos de 8 bits.
+Respecto de las operaciones de saturación, el procesador Cortex -M3 admite dos instrucciones que proporcionan ajuste de saturación de datos firmados y no firmados. Son SSAT (para datos firmados) y USAT (para datos sin firmar). El procesador Cortex-M4 también los admite y, además, admite instrucciones para algoritmos saturados. 
+La saturación se utiliza comúnmente en el procesamiento de señales. Por ejemplo, después de ciertas operaciones como la amplificación, la amplitud de una señal puede exceder el rango de salida máximo permitido. Si el valor se ajusta simplemente cortando los bits MSB, la forma de onda de la señal resultante podría distorsionarse por completo, provocando una inversión de la forma de la zona de las crestas y valles. Figura 5.11.
+La operación de saturación reduce la distorsión forzando el valor al valor máximo permitido. La distorsión aún existe, pero si el valor no excede demasiado el rango máximo es menos perceptible.
+
+![Alt text](image.png)
+
+La sintaxis de las instrucciones SSAT y USAT es la siguiente:
+                  SSAT <Rd>, #<immed>, <Rn>, {,<shift>} ; Saturación por valor con signo
+                  USAT <Rd>, #<immed>, <Rn>, {,<shift>} ; Saturación de un valor con signo en un valor sin signo
+	        Donde:  <Rn> : Valor de entrada
+                  <shift> : Operación de cambio opcional para el valor de entrada antes de la saturación. Esto puede ser #LSL N ó #ASR N
+                  <immed> : Posición del bit donde se realiza la saturación.
+                  <Rd> : Registro de destino
+
+Además del registro de destino, el resultado también puede afectar el bit Q en el APSR. El indicador Q se activa si se produce saturación en la operación y se puede borrar escribiendo en el APSR. Por ejemplo, si un valor con signo de 32 bits se va a saturar en un valor con signo de 16 bits, se puede utilizar la siguiente instrucción:
+	              	SSAT R1, #16, R0
+USAT es ligeramente diferente en que el resultado es un valor sin signo. Esto proporcionará una operación de saturación como se muestra en la Figura 5.12.
+Por ejemplo, puede convertir un valor con signo de 32 bits en un valor sin signo de 16 bits usando:
+		              USAT R1, #16, R0
+
+![Alt text](image-1.png)
+
+4. Describa brevemente la interfaz entre assembler y C ¿Cómo se reciben los argumentos de las funciones? ¿Cómo se devuelve el resultado? ¿Qué registros deben guardarse en la pila antes de ser modificados?
+Con el procesador Cortex -M, se pueden programar controladores de excepciones o Rutinas de servicio de interrupción (ISR) como rutinas/funciones normales de C. Para comprender el mecanismo exacto que respalda esto, primero observamos cómo funcionan las funciones C en la arquitectura ARM.
+Los compiladores de C para arquitectura ARM siguen una especificación de ARM llamada AAPCS, Norma de llamada a procedimiento para arquitectura ARM (referencia 13). Según este estándar, una función C puede modificar R0 a R3, R12, R14 (LR) y PSR. Si la función C necesita usar R4 a R11, debe guardar estos registros en la memoria de la pila y restaurarlos antes de que finalice la función.
+R0 a R3, R12, LR y PSR se denominan "registros guardados por el que llama". El código del programa que llama a una subrutina necesita guardar el contenido de estos registros en la memoria (por ejemplo, pila) antes de la llamada a la función si estos valores aún serán necesarios después de la llamada a la función. Los valores de registro que no son necesarios después de la llamada a la función no tienen que guardarse.
+R4 a R11 se denominan "registros guardados por el destinatario". La subrutina o función que se llama debe asegurarse de que el contenido de estos registros no se modifique al final de la función (el mismo valor que cuando se ingresa la función). Los valores de estos registros podrían cambiar en medio de la ejecución de la función, pero deben restaurarse a sus valores originales antes de salir de la función.
+Se aplican requisitos similares a los registros en la unidad de punto flotante si el procesador utilizado es un Cortex-M4 con soporte de punto flotante:
+                        S0 y S15 son "registros guardados del que llama".
+                        S16 y S31 son "registros guardados por el destinatario".
+Normalmente, una llamada de función utiliza R0 a R3 como parámetros de entrada y R0 como resultado de retorno. Si el valor de retorno es de 64 bits, R1 también se utilizará como resultado de retorno.
+Para permitir que una función C se utilice como controlador de excepciones, el mecanismo de excepción debe guardar automáticamente R0 en R3, R12, LR y PSR en la entrada de la excepción y restaurarlos en la salida de la excepción bajo el control del hardware del procesador. De esta manera, cuando se regrese al programa interrumpido, todos los registros tendrían el mismo valor que cuando comenzó la secuencia de entrada de interrupción. Además, dado que el valor de la dirección de retorno (PC) no se almacena en LR como en las llamadas a funciones normales de C (el mecanismo de excepción coloca un código EXC_RETURN en LR en la entrada de excepción, que se utiliza en el retorno de excepción), el valor de la dirección de retorno también debe guardarse mediante la secuencia de excepción. Por lo tanto, es necesario guardar un total de ocho registros durante la secuencia de manejo de excepciones en los procesadores Cortex-M3 o Cortex-M4 sin una unidad de punto flotante.
+Para el procesador Cortex-M4 con unidad de punto flotante, el mecanismo de excepción también necesita conocer el valor de S0 a S15 y FPSCR si se utiliza la unidad de punto flotante. Esto se indica mediante un bit en el registro CONTROL llamado FPCA (Floating Point Context Active).
+
+5. ¿Qué es una instrucción SIMD? ¿En qué se aplican y que ventajas reporta su uso? Dé un ejemplo.
+Instrucciones SIMD data
+Cortex -M4 proporciona instrucciones SIMD que funcionan con enteros empaquetados de 8 o 16 bits. Un registro de 32 bits puede contener 1 valor de 32 bits, 2 valores de 16 bits o 4 valores de 8 bits.
+Las instrucciones que operan con tipos de datos de 8 o 16 bits son útiles para procesar datos, como video o audio, que no requieren una precisión total de 32 bits.
+Para utilizar las instrucciones SIMD del código C, carga valores en variables int32_t y luego invoca las instrucciones intrínsecas SIMD correspondientes.
+# Instrucciones de carga y almacenamiento.
+La carga y el almacenamiento de valores de datos de 32 bits se pueden lograr con construcciones C estándar. En Cortex -M3, cada instrucción de carga o almacenamiento tarda 2 ciclos en ejecutarse. En Cortex-M4, la primera instrucción de carga o almacenamiento toma 2 ciclos, mientras que las cargas o almacenamientos posteriores toman 1 ciclo. Siempre que sea posible, agrupe cargas y almacenes para aprovechar este ahorro de 1 ciclo.
+Para cargar o almacenar datos SIMD empaquetados, defina variables int32_t para contener los datos. Luego realice las cargas y almacenes utilizando las macros __SIMD32 proporcionadas en la biblioteca CMSIS. Por ejemplo, para cargar cuatro valores de 8 bits en una instrucción, use:
+                      q7_t *pSrc *pDst;
+                      int32_t x;
+                    x = *__SIMD32(pSrc)++;
